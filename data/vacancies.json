@@ -1,0 +1,26 @@
+[
+    {
+        "name": "Monitoring Data Analyst",
+        "url": "https://hh.ru/vacancy/106466003",
+        "salary_from": 0,
+        "salary_to": 0,
+        "requirement": "Отличное знание SQL (ISO/IEC 9075). Хорошее знание <highlighttext>Python</highlighttext> для аналитики (Pandas, Numpy и др.). Умение видеть за цифрами причины...",
+        "id": "106466003"
+    },
+    {
+        "name": "Инженер группы поддержки L3 (телеком проекты)",
+        "url": "https://hh.ru/vacancy/107100951",
+        "salary_from": 140000,
+        "salary_to": 140000,
+        "requirement": "Опыт работы с SNMP и OpenNMS будет плюсом. Знание <highlighttext>Python</highlighttext> будет существенным плюсом. Знание bash будет плюсом. Понимание работы GSM...",
+        "id": "107100951"
+    },
+    {
+        "name": "Аналитик данных (middle)",
+        "url": "https://hh.ru/vacancy/107264512",
+        "salary_from": 0,
+        "salary_to": 0,
+        "requirement": "Знания в области AB-тестирования и статистики. Плюсом будет. Опыт работы с <highlighttext>Python</highlighttext>. Умение работать с Git. Опыт работы с...",
+        "id": "107264512"
+    }
+]
