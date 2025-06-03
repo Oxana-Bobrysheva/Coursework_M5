@@ -35,7 +35,7 @@ class DBConnection:
             vacancies_count int)"""
         with self.connect_to_db().cursor() as cur:
             cur.execute(execute_message)
-
+        print("Database was created")
 
     def db_filling_columns_for_emps(self, employers_id_list: list, employers_list: list):
         filtered_employers_list = [
