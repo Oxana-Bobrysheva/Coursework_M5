@@ -28,6 +28,7 @@ class DBConnection:
         cur.close()
         conn.close()
 
+
     def db_creating_employers(self) -> None:
         execute_message = """CREATE TABLE IF NOT EXISTS employers 
             (employer_id varchar PRIMARY KEY,
