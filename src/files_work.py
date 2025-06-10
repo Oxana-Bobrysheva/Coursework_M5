@@ -2,7 +2,7 @@ import json
 import os
 from abc import ABC, abstractmethod
 
-from src.vacancy_class import Vacancy
+from src.vacancies import Vacancy
 
 
 class SaverABC(ABC):
