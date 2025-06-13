@@ -1,8 +1,7 @@
 import os
-
 import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
@@ -14,11 +13,13 @@ class DBConnection:
         self._params = params
         self._database = os.getenv("DATABASE")
 
-
-    def connect_to_db(self):
+    def connect_to_db(self, dbname=None):
         """Метод подключения к базе данных"""
         try:
-            return psycopg2.connect(dbname=self._database, **self._params)
+            return psycopg2.connect(
+                dbname=dbname or self._database,
+                **self._params
+            )
         except psycopg2.Error as e:
             print(f"Ошибка при подключении к базе данных: {e}")
             raise
@@ -26,133 +27,118 @@ class DBConnection:
     def create_db(self):
         """Метод для создания базы данных"""
         try:
-            conn = psycopg2.connect(dbname=self._database, **self._params)
-            conn.autocommit = True
+            # Подключаемся к стандартной БД postgres для создания новой БД
+            conn = psycopg2.connect(dbname='postgres', **self._params)
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
             with conn.cursor() as cur:
-                cur.execute("DROP DATABASE IF EXISTS employers_vacancy;")
-                cur.execute("CREATE DATABASE employers_vacancy;")
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (self._database,))
+                exists = cur.fetchone()
+                if not exists:
+                    cur.execute(f'CREATE DATABASE "{self._database}";')
+                    print(f"База данных '{self._database}' создана.")
+                else:
+                    print(f"База данных '{self._database}' уже существует.")
             conn.close()
         except psycopg2.Error as e:
-            print(f"Ошибка при подключении к базе данных: {e}")
+            print(f"Ошибка при создании базы данных: {e}")
             raise
 
     def create_tables(self):
-        """Method that creates all tables in proper order with error handling"""
+        """Создание таблиц в правильном порядке"""
         try:
-            # First create employers table
-            self.db_creating_employers()
-
-            # Then create vacancies table with foreign key
-            self.db_creating_vacancies()
-
-        except psycopg2.Error as e:
-            print(f"Error creating tables: {e}")
-            raise
-
-    def db_creating_employers(self) -> None:
-        """Method that creates a table called <employers>"""
-        execute_message = """CREATE TABLE IF NOT EXISTS employers 
-            (employer_id varchar PRIMARY KEY,
-            company_name varchar(50) UNIQUE,
-            vacancies_count int)"""
-        conn = self.connect_to_db()
-        try:
+            conn = self.connect_to_db()
             with conn.cursor() as cur:
-                cur.execute(execute_message)
+                # Создаем таблицу companies
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS companies (
+                        id SERIAL PRIMARY KEY,
+                        hh_id VARCHAR(50) UNIQUE NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        open_vacancies INTEGER
+                    );
+                """)
+
+                # Создаем таблицу vacancies с внешним ключом
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS vacancies (
+                        id SERIAL PRIMARY KEY,
+                        company_id INTEGER REFERENCES companies(id),
+                        name VARCHAR(255) NOT NULL,
+                        salary_from INTEGER,
+                        salary_to INTEGER,
+                        requirement TEXT,
+                        url TEXT NOT NULL
+                    );
+                """)
             conn.commit()
-            print("Employers table was created successfully")
+            print("Таблицы созданы успешно")
+        except psycopg2.Error as e:
+            conn.rollback()
+            print(f"Ошибка при создании таблиц: {e}")
+            raise
         finally:
             conn.close()
 
-    def db_creating_vacancies(self) -> None:
-        """Method that creates a table called <vacancies>"""
-        execute_message = """CREATE TABLE IF NOT EXISTS vacancies 
-            (vacancy_id varchar NOT NULL,
-            vacancy_name varchar NOT NULL,
-            salary_from int,
-            salary_to int,
-            requirement text,
-            url varchar NOT NULL,
-            employer_id varchar,
-            FOREIGN KEY (employer_id) REFERENCES employers (employer_id))"""
+    def db_filling_companies(self, employers_list: list):
+        """Заполнение таблицы companies"""
         conn = self.connect_to_db()
         try:
             with conn.cursor() as cur:
-                cur.execute(execute_message)
+                for employer in employers_list:
+                    cur.execute("""
+                        INSERT INTO companies (hh_id, name, open_vacancies)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (hh_id) DO NOTHING;
+                    """, (
+                        employer.get("id"),
+                        employer.get("name"),
+                        employer.get("open_vacancies")
+                    ))
             conn.commit()
-            print("Таблица с вакансиями успешно создана")
-        except psycopg2.Error as e:
-            print(f"Ошибка при создании таблицы вакансий: {e}")
+            print("Данные о компаниях добавлены успешно")
+        except Exception as e:
+            conn.rollback()
+            print(f"Ошибка при добавлении компаний: {e}")
             raise
         finally:
             conn.close()
 
     def db_filling_vacancies(self, vacancies_list: list):
-        """Method that fills the table <vacancies> with data"""
-        execute_message = """INSERT INTO vacancies 
-                        (vacancy_id, vacancy_name, salary_from, salary_to, requirement, url, employer_id) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+        """Заполнение таблицы vacancies"""
         conn = self.connect_to_db()
         try:
             with conn.cursor() as cur:
                 for vacancy in vacancies_list:
-                    params = (
-                        vacancy.get("id"),
+                    # Обработка случая, когда salary отсутствует или None
+                    salary = vacancy.get("salary") or {}
+
+                    # Проверка employer, чтобы избежать ошибки, если employer None
+                    employer = vacancy.get("employer") or {}
+
+                    # Проверка snippet, чтобы избежать ошибки, если snippet None
+                    snippet = vacancy.get("snippet") or {}
+
+                    cur.execute("""
+                        INSERT INTO vacancies 
+                        (company_id, name, salary_from, salary_to, requirement, url) 
+                        VALUES (
+                            (SELECT id FROM companies WHERE hh_id = %s),
+                            %s, %s, %s, %s, %s
+                        )
+                    """, (
+                        employer.get("id"),
                         vacancy.get("name"),
-                        (
-                            vacancy.get("salary").get("from")
-                            if vacancy.get("salary") is not None
-                            else 0
-                        ),
-                        (
-                            vacancy.get("salary").get("to")
-                            if vacancy.get("salary") is not None
-                            else 0
-                        ),
-                        (
-                            vacancy.get("snippet").get("requirement")
-                            if vacancy.get("snippet") is not None
-                            else None
-                        ),
-                        vacancy.get("url"),
-                        (
-                            vacancy.get("employer").get("id")
-                            if vacancy.get("employer") is not None
-                            else None
-                        ),
-                    )
-                    cur.execute(execute_message, params)
+                        salary.get("from"),
+                        salary.get("to"),
+                        snippet.get("requirement"),
+                        vacancy.get("url")
+                    ))
             conn.commit()
             print("Данные по вакансиям добавлены успешно")
         except Exception as e:
             conn.rollback()
             print(f"Ошибка при добавлении вакансий: {e}")
-            raise
-        finally:
-            conn.close()
-
-    def db_filling_columns_for_emps(self, employers_id_list: list, employers_list: list):
-        """Method that fills the table <employers> with data"""
-        filtered_employers_list = [
-            emp for emp in employers_list if emp["id"] in employers_id_list
-        ]
-        conn = self.connect_to_db()
-        try:
-            with conn.cursor() as cur:
-                execute_message = """INSERT INTO employers (employer_id, company_name, vacancies_count) VALUES 
-            (%s, %s, %s)"""
-                for employer in filtered_employers_list:
-                    params = (
-                        employer.get("id"),
-                        employer.get("name"),
-                        employer.get("open_vacancies"),
-                    )
-                    cur.execute(execute_message, params)
-            conn.commit()
-            print("Данные по работодателям внесены в таблицу")
-        except Exception as e:
-            conn.rollback()
-            print(f"Ошибка при внесении данных о работодателях: {e}")
             raise
         finally:
             conn.close()

@@ -32,29 +32,73 @@ def user_interaction():
 
 def user_interaction_with_db():
     """Функция для создания, заполнения и взаимодействия пользователя с базой данных вакансий"""
-    employer_word = input("Введите слово по которому хотите найти работодателя или оставьте поле пустым:\n")
-    employers_count = int(input("Введите топ N (число до 50) вакансий для просмотра:\n"))
-    employer_obj = FindEmployerFromHHApi()
-    employers = employer_obj.get_employer_info(employers_count, keyword=employer_word)
     params = config()
     db_connect = DBConnection(params)
+
+    # Сначала создаем базу данных
     db_connect.create_db()
 
-    db_connect.db_creating_employers()
-    employers_id_list = list(input("Введите через запятую id не менее 10 компаний для отслеживания:\n").split(", "))
-    db_connect.db_filling_columns_for_emps(employers_id_list, employers)
+    # Затем создаем таблицы
+    db_connect.create_tables()
 
-    db_connect.db_creating_vacancies()
-    for emp_id in employers_id_list:
+    # Получаем список компаний
+    employer_word = input("Введите ключевое слово для поиска компаний (например, 'яндекс'):\n") or None
+    employers_count = int(input("Введите количество компаний для поиска (до 50):\n") or 10)
+
+    employer_obj = FindEmployerFromHHApi()
+    employers = employer_obj.get_employer_info(employers_count, keyword=employer_word)
+
+    if not employers:
+        print("Не найдено компаний по вашему запросу")
+        return
+
+    # Выводим список найденных компаний
+    print("\nНайденные компании:")
+    for i, emp in enumerate(employers, 1):
+        print(f"{i}. {emp.get('name')} (ID: {emp.get('id')})")
+
+    # Заполняем таблицу companies
+    db_connect.db_filling_companies(employers)
+    print("\nДанные о компаниях добавлены в базу данных")
+
+    # Заполняем таблицу vacancies для всех компаний
+    for emp in employers:
+        emp_id = emp.get("id")
+        print(f"\nОбработка компании {emp.get('name')} (ID: {emp_id})")
         vacancy_list = FindVacancyFromHHApi().get_vacancies_by_employer_id(emp_id)
-        db_connect.db_filling_vacancies(vacancy_list)
-    searching_keyword = input('Введите слово для поиска по имеющимся вакансиям ...')
-    query_manager = DBManager()
-    print(query_manager.get_companies_and_vacancies_count())
-    print(query_manager.get_all_vacancies())
-    print(query_manager.get_avg_salary())
-    print(query_manager.get_vacancies_with_higher_salary())
-    print(query_manager.get_vacancies_with_keyword(searching_keyword))
+        print(f"Найдено вакансий: {len(vacancy_list)}")
+        if vacancy_list:
+            db_connect.db_filling_vacancies(vacancy_list)
+
+    # Работа с менеджером базы данных
+    query_manager = DBManager(params)
+
+    while True:
+        print("\nВыберите действие:")
+        print("1. Получить список всех компаний и количество вакансий")
+        print("2. Получить список всех вакансий")
+        print("3. Получить среднюю зарплату по вакансиям")
+        print("4. Получить вакансии с зарплатой выше средней")
+        print("5. Поиск вакансий по ключевому слову")
+        print("0. Выход")
+
+        choice = input("Ваш выбор: ")
+
+        if choice == "1":
+            print(query_manager.get_companies_and_vacancies_count())
+        elif choice == "2":
+            print(query_manager.get_all_vacancies())
+        elif choice == "3":
+            print(query_manager.get_avg_salary())
+        elif choice == "4":
+            print(query_manager.get_vacancies_with_higher_salary())
+        elif choice == "5":
+            keyword = input("Введите ключевое слово для поиска: ")
+            print(query_manager.get_vacancies_with_keyword(keyword))
+        elif choice == "0":
+            break
+        else:
+            print("Неверный ввод, попробуйте еще раз")
 
 
 if __name__ == "__main__":

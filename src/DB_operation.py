@@ -1,37 +1,33 @@
 import psycopg2
+import os
+from dotenv import load_dotenv
 
-from src.DB_creation import DBConnection
-from config import config
+load_dotenv()
 
-class DBManager(DBConnection):
+
+class DBManager:
     """Класс для взаимодействия с базой данных"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, params):
+        self._params = params
+        self._database = os.getenv("DATABASE")
 
-    # def connect_to_db(self, query, params=None):
-    #     try:
-    #         with psycopg2.connect(
-    #                 host=self._host,
-    #                 database=self._database,
-    #                 user=self._username,
-    #                 port=self._port,
-    #                 password=self._password,
-    #         ) as conn:
-    #             conn.autocommit = True
-    #             with conn.cursor() as cur:
-    #                 cur.execute(query, params)
-    #                 result = cur.fetchall()
-    #     except Exception as e:
-    #         print(f"Ошибка при выполнении запроса: {e}")
-    #         result = []
-    #     return result
+    def connect_to_db(self):
+        """Метод подключения к базе данных"""
+        try:
+            return psycopg2.connect(
+                dbname=self._database,
+                **self._params
+            )
+        except psycopg2.Error as e:
+            print(f"Ошибка при подключении к базе данных: {e}")
+            raise
 
     def execute_query(self, query, params=None):
         """Execute a query and return results"""
         conn = None
         try:
-            conn = super().connect_to_db()  # Use parent's connection method
+            conn = self.connect_to_db()
             with conn.cursor() as cur:
                 cur.execute(query, params)
                 if cur.description:  # If there are results to fetch
@@ -49,37 +45,141 @@ class DBManager(DBConnection):
             if conn:
                 conn.close()
 
-
     def get_companies_and_vacancies_count(self):
-        """Метод для получения из базы данных названия компании и количества вакансий этой компании"""
-        execute_message = """SELECT employers.company_name, COUNT(vacancies.employer_id)
-        FROM employers JOIN vacancies USING (employer_id) GROUP BY employer_id"""
-        results = self.execute_query(execute_message)
-        return f'Компании и количество вакансий:{results}'
+        """Получает список всех компаний и количество вакансий у каждой компании"""
+        query = """
+        SELECT c.name, COUNT(v.id) as vacancies_count
+        FROM companies c
+        LEFT JOIN vacancies v ON c.id = v.company_id
+        GROUP BY c.id
+        ORDER BY vacancies_count DESC
+        """
+        results = self.execute_query(query)
+        if not results:
+            return "Нет данных о компаниях"
+
+        output = ["Компании и количество вакансий:"]
+        for company, count in results:
+            output.append(f"{company}: {count} вакансий")
+        return "\n".join(output)
 
     def get_all_vacancies(self):
-        """Метод для получения информации по вакансии и названию компании"""
-        execute_message = """SELECT employers.company_name, vacancies.vacancy_name, 
-        ((vacancies.salary_from + vacancies.salary_to) / 2), vacancies.url
-        FROM vacancies JOIN employers USING(employer_id)"""
-        results = self.execute_query(execute_message)
-        return f'Список всех вакансий:\n{results[:10] if results else "Вакансий не найдено"} \n...'
+        """Получает список всех вакансий с указанием названия компании,
+        названия вакансии, зарплаты и ссылки на вакансию"""
+        query = """
+        SELECT c.name as company, v.name as vacancy, 
+               CASE 
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+                       THEN (v.salary_from + v.salary_to) / 2
+                   WHEN v.salary_from IS NOT NULL THEN v.salary_from
+                   WHEN v.salary_to IS NOT NULL THEN v.salary_to
+                   ELSE NULL
+               END as salary,
+               v.url
+        FROM vacancies v
+        JOIN companies c ON v.company_id = c.id
+        ORDER BY salary DESC NULLS LAST
+        LIMIT 20
+        """
+        results = self.execute_query(query)
+        if not results:
+            return "Вакансий не найдено"
+
+        output = ["Список вакансий (первые 20):"]
+        for company, vacancy, salary, url in results:
+            salary_info = f"Зарплата: {salary}" if salary else "Зарплата не указана"
+            output.append(f"{company} - {vacancy}\n{salary_info}\nСсылка: {url}\n")
+        return "\n".join(output)
 
     def get_avg_salary(self):
-        """Метод для получения средней зарплаты по вакансиям"""
-        execute_message = """SELECT AVG((vacancies.salary_from + vacancies.salary_to) / 2) FROM vacancies"""
-        results = self.execute_query(execute_message)
-        return f'Средняя зарплата по вакансиям:\n{results[0][0] if results else "Нет данных по зарплате"}'
+        """Получает среднюю зарплату по вакансиям"""
+        query = """
+        SELECT AVG(
+            CASE 
+                WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL 
+                    THEN (salary_from + salary_to) / 2
+                WHEN salary_from IS NOT NULL THEN salary_from
+                WHEN salary_to IS NOT NULL THEN salary_to
+                ELSE NULL
+            END
+        ) as avg_salary
+        FROM vacancies
+        """
+        results = self.execute_query(query)
+        if not results or not results[0][0]:
+            return "Нет данных о зарплатах"
+        return f"Средняя зарплата: {int(results[0][0])} руб."
 
     def get_vacancies_with_higher_salary(self):
-        """Метод для получения вакансий с зарплатой выше среднего"""
-        execute_message = """SELECT * FROM vacancies WHERE ((vacancies.salary_from + vacancies.salary_to) / 2) > 
-        (SELECT (AVG((vacancies.salary_from + vacancies.salary_to) / 2)) FROM vacancies)"""
-        results = self.execute_query(execute_message)
-        return f'Вакансии с зарплатой выше среднего:\n{results[:10] if results else "Нет подходящих вакансий"}'
+        """Получает список всех вакансий, у которых зарплата выше средней по всем вакансиям"""
+        query = """
+        SELECT v.name as vacancy, c.name as company,
+               CASE 
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+                       THEN (v.salary_from + v.salary_to) / 2
+                   WHEN v.salary_from IS NOT NULL THEN v.salary_from
+                   WHEN v.salary_to IS NOT NULL THEN v.salary_to
+                   ELSE NULL
+               END as salary,
+               v.url
+        FROM vacancies v
+        JOIN companies c ON v.company_id = c.id
+        WHERE (
+            CASE 
+                WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+                    THEN (v.salary_from + v.salary_to) / 2
+                WHEN v.salary_from IS NOT NULL THEN v.salary_from
+                WHEN v.salary_to IS NOT NULL THEN v.salary_to
+                ELSE NULL
+            END
+        ) > (
+            SELECT AVG(
+                CASE 
+                    WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL 
+                        THEN (salary_from + salary_to) / 2
+                    WHEN salary_from IS NOT NULL THEN salary_from
+                    WHEN salary_to IS NOT NULL THEN salary_to
+                    ELSE NULL
+                END
+            )
+            FROM vacancies
+        )
+        ORDER BY salary DESC
+        LIMIT 20
+        """
+        results = self.execute_query(query)
+        if not results:
+            return "Нет вакансий с зарплатой выше средней"
+
+        output = ["Вакансии с зарплатой выше средней (первые 20):"]
+        for vacancy, company, salary, url in results:
+            output.append(f"{company} - {vacancy}\nЗарплата: {int(salary)} руб.\nСсылка: {url}\n")
+        return "\n".join(output)
 
     def get_vacancies_with_keyword(self, keyword: str):
-        """Метод для получения вакансий по ключевому слову"""
-        execute_message = f"""SELECT * FROM vacancies WHERE vacancy_name ILIKE %s"""
-        results = self.execute_query(execute_message, ('%' + keyword + '%',))
-        return f'Вакансии по ключевому слову "keyword":\n{results[:10] if results else "Нет подходящих вакансий"}'
+        """Получает список всех вакансий, в названии которых содержатся переданные слова"""
+        query = """
+        SELECT v.name as vacancy, c.name as company,
+               CASE 
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+                       THEN (v.salary_from + v.salary_to) / 2
+                   WHEN v.salary_from IS NOT NULL THEN v.salary_from
+                   WHEN v.salary_to IS NOT NULL THEN v.salary_to
+                   ELSE NULL
+               END as salary,
+               v.url
+        FROM vacancies v
+        JOIN companies c ON v.company_id = c.id
+        WHERE v.name ILIKE %s
+        ORDER BY salary DESC NULLS LAST
+        LIMIT 20
+        """
+        results = self.execute_query(query, ('%' + keyword + '%',))
+        if not results:
+            return f"Нет вакансий по ключевому слову '{keyword}'"
+
+        output = [f"Результаты поиска по '{keyword}' (первые 20):"]
+        for vacancy, company, salary, url in results:
+            salary_info = f"Зарплата: {int(salary)} руб." if salary else "Зарплата не указана"
+            output.append(f"{company} - {vacancy}\n{salary_info}\nСсылка: {url}\n")
+        return "\n".join(output)
