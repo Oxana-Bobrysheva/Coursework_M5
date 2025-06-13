@@ -43,7 +43,7 @@ def user_interaction_with_db():
 
     # Получаем список компаний
     employer_word = input("Введите ключевое слово для поиска компаний (например, 'яндекс'):\n") or None
-    employers_count = int(input("Введите количество компаний для поиска (до 50):\n") or 10)
+    employers_count = int(input("Введите количество компаний для поиска (до 50):\n"))
 
     employer_obj = FindEmployerFromHHApi()
     employers = employer_obj.get_employer_info(employers_count, keyword=employer_word)
