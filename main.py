@@ -52,23 +52,23 @@ def user_interaction_with_db():
         print("Не найдено компаний по вашему запросу")
         return
 
-    # Выводим список найденных компаний
-    print("\nНайденные компании:")
-    for i, emp in enumerate(employers, 1):
-        print(f"{i}. {emp.get('name')} (ID: {emp.get('id')})")
-
-    # Заполняем таблицу companies
-    db_connect.db_filling_companies(employers)
-    print("\nДанные о компаниях добавлены в базу данных")
-
-    # Заполняем таблицу vacancies для всех компаний
-    for emp in employers:
-        emp_id = emp.get("id")
-        print(f"\nОбработка компании {emp.get('name')} (ID: {emp_id})")
-        vacancy_list = FindVacancyFromHHApi().get_vacancies_by_employer_id(emp_id)
-        print(f"Найдено вакансий: {len(vacancy_list)}")
-        if vacancy_list:
-            db_connect.db_filling_vacancies(vacancy_list)
+    # # Выводим список найденных компаний
+    # print("\nНайденные компании:")
+    # for i, emp in enumerate(employers, 1):
+    #     print(f"{i}. {emp.get('name')} (ID: {emp.get('id')})")
+    #
+    # # Заполняем таблицу companies
+    # db_connect.db_filling_companies(employers)
+    # print("\nДанные о компаниях добавлены в базу данных")
+    #
+    # # Заполняем таблицу vacancies для всех компаний
+    # for emp in employers:
+    #     emp_id = emp.get("id")
+    #     print(f"\nОбработка компании {emp.get('name')} (ID: {emp_id})")
+    #     vacancy_list = FindVacancyFromHHApi().get_vacancies_by_employer_id(emp_id)
+    #     print(f"Найдено вакансий: {len(vacancy_list)}")
+    #     if vacancy_list:
+    #         db_connect.db_filling_vacancies(vacancy_list)
 
     # Работа с менеджером базы данных
     query_manager = DBManager(params)
