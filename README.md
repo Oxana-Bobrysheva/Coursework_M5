@@ -53,3 +53,14 @@ psycopg2.
 ```bash
 cp .env.example .env
 ```
+## Настройка подключения к базе данных
+В корне проекта создайте файл с именем database.ini.
+Добавьте в него параметры подключения к вашей базе данных. Пример для PostgreSQL:
+```[postgresql]
+host=localhost
+port=5432
+database=mydatabase
+user=myuser
+password=mypassword
+```
+Убедитесь, что файл database.ini не попал в систему контроля версий (добавьте его в .gitignore).
