@@ -1,7 +1,8 @@
 import os
+
 import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 load_dotenv()
 
@@ -16,10 +17,7 @@ class DBConnection:
     def connect_to_db(self, dbname=None):
         """Метод подключения к базе данных"""
         try:
-            return psycopg2.connect(
-                dbname=dbname or self._database,
-                **self._params
-            )
+            return psycopg2.connect(dbname=dbname or self._database, **self._params)
         except psycopg2.Error as e:
             print(f"Ошибка при подключении к базе данных: {e}")
             raise
@@ -28,11 +26,13 @@ class DBConnection:
         """Метод для создания базы данных"""
         try:
             # Подключаемся к стандартной БД postgres для создания новой БД
-            conn = psycopg2.connect(dbname='postgres', **self._params)
+            conn = psycopg2.connect(dbname="postgres", **self._params)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (self._database,))
+                cur.execute(
+                    "SELECT 1 FROM pg_database WHERE datname = %s;", (self._database,)
+                )
                 exists = cur.fetchone()
                 if not exists:
                     cur.execute(f'CREATE DATABASE "{self._database}";')
@@ -50,17 +50,20 @@ class DBConnection:
             conn = self.connect_to_db()
             with conn.cursor() as cur:
                 # Создаем таблицу companies
-                cur.execute("""
+                cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS companies (
                         id SERIAL PRIMARY KEY,
                         hh_id VARCHAR(50) UNIQUE NOT NULL,
                         name VARCHAR(255) NOT NULL,
                         open_vacancies INTEGER
                     );
-                """)
+                """
+                )
 
                 # Создаем таблицу vacancies с внешним ключом
-                cur.execute("""
+                cur.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS vacancies (
                         id SERIAL PRIMARY KEY,
                         company_id INTEGER REFERENCES companies(id),
@@ -70,7 +73,8 @@ class DBConnection:
                         requirement TEXT,
                         url TEXT NOT NULL
                     );
-                """)
+                """
+                )
             conn.commit()
             print("Таблицы созданы успешно")
         except psycopg2.Error as e:
@@ -86,15 +90,18 @@ class DBConnection:
         try:
             with conn.cursor() as cur:
                 for employer in employers_list:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO companies (hh_id, name, open_vacancies)
                         VALUES (%s, %s, %s)
                         ON CONFLICT (hh_id) DO NOTHING;
-                    """, (
-                        employer.get("id"),
-                        employer.get("name"),
-                        employer.get("open_vacancies")
-                    ))
+                    """,
+                        (
+                            employer.get("id"),
+                            employer.get("name"),
+                            employer.get("open_vacancies"),
+                        ),
+                    )
             conn.commit()
             print("Данные о компаниях добавлены успешно")
         except Exception as e:
@@ -119,21 +126,24 @@ class DBConnection:
                     # Проверка snippet, чтобы избежать ошибки, если snippet None
                     snippet = vacancy.get("snippet") or {}
 
-                    cur.execute("""
-                        INSERT INTO vacancies 
-                        (company_id, name, salary_from, salary_to, requirement, url) 
+                    cur.execute(
+                        """
+                        INSERT INTO vacancies
+                        (company_id, name, salary_from, salary_to, requirement, url)
                         VALUES (
                             (SELECT id FROM companies WHERE hh_id = %s),
                             %s, %s, %s, %s, %s
                         )
-                    """, (
-                        employer.get("id"),
-                        vacancy.get("name"),
-                        salary.get("from"),
-                        salary.get("to"),
-                        snippet.get("requirement"),
-                        vacancy.get("url")
-                    ))
+                    """,
+                        (
+                            employer.get("id"),
+                            vacancy.get("name"),
+                            salary.get("from"),
+                            salary.get("to"),
+                            snippet.get("requirement"),
+                            vacancy.get("url"),
+                        ),
+                    )
             conn.commit()
             print("Данные по вакансиям добавлены успешно")
         except Exception as e:
