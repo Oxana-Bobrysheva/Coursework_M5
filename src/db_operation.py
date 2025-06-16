@@ -1,9 +1,4 @@
-import os
-
 import psycopg2
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class DBManager:
@@ -11,12 +6,11 @@ class DBManager:
 
     def __init__(self, params):
         self._params = params
-        self._database = os.getenv("DATABASE")
 
     def connect_to_db(self):
         """Метод подключения к базе данных"""
         try:
-            return psycopg2.connect(dbname=self._database, **self._params)
+            return psycopg2.connect(**self._params)
         except psycopg2.Error as e:
             print(f"Ошибка при подключении к базе данных: {e}")
             raise

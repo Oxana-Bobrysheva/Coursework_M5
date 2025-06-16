@@ -1,10 +1,6 @@
-import os
-
 import psycopg2
-from dotenv import load_dotenv
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
-load_dotenv()
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
 class DBConnection:
@@ -12,40 +8,48 @@ class DBConnection:
 
     def __init__(self, params):
         self._params = params
-        self._database = os.getenv("DATABASE")
 
-    def connect_to_db(self, dbname=None):
+    def connect_to_db(self):
         """Метод подключения к базе данных"""
         try:
-            return psycopg2.connect(dbname=dbname or self._database, **self._params)
+            return psycopg2.connect(**self._params)
         except psycopg2.Error as e:
             print(f"Ошибка при подключении к базе данных: {e}")
             raise
 
     def create_db(self):
         """Метод для создания базы данных"""
+        print(self._params)
+        conn = None
         try:
-            # Подключаемся к стандартной БД postgres для создания новой БД
-            conn = psycopg2.connect(dbname="postgres", **self._params)
+            # Создаем копию параметров и подключаемся к системной БД postgres
+            params = self._params.copy()
+            params['database'] = 'postgres'  # Подключаемся к системной БД
+
+            conn = psycopg2.connect(**params)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT 1 FROM pg_database WHERE datname = %s;", (self._database,)
+                    "SELECT 1 FROM pg_database WHERE datname = %s;",
+                    (self._params["database"],)
                 )
                 exists = cur.fetchone()
                 if not exists:
-                    cur.execute(f'CREATE DATABASE "{self._database}";')
-                    print(f"База данных '{self._database}' создана.")
+                    cur.execute(f'CREATE DATABASE "{self._params["database"]}";')
+                    print(f"База данных '{self._params['database']}' создана.")
                 else:
-                    print(f"База данных '{self._database}' уже существует.")
-            conn.close()
+                    print(f"База данных '{self._params['database']}' уже существует.")
         except psycopg2.Error as e:
             print(f"Ошибка при создании базы данных: {e}")
             raise
+        finally:
+            if conn:
+                conn.close()
 
     def create_tables(self):
         """Создание таблиц в правильном порядке"""
+        conn = None
         try:
             conn = self.connect_to_db()
             with conn.cursor() as cur:
@@ -78,11 +82,13 @@ class DBConnection:
             conn.commit()
             print("Таблицы созданы успешно")
         except psycopg2.Error as e:
-            conn.rollback()
+            if conn:
+                conn.rollback()
             print(f"Ошибка при создании таблиц: {e}")
             raise
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
     def db_filling_companies(self, employers_list: list):
         """Заполнение таблицы companies"""
@@ -105,11 +111,13 @@ class DBConnection:
             conn.commit()
             print("Данные о компаниях добавлены успешно")
         except Exception as e:
-            conn.rollback()
+            if conn:
+                conn.rollback()
             print(f"Ошибка при добавлении компаний: {e}")
             raise
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
     def db_filling_vacancies(self, vacancies_list: list):
         """Заполнение таблицы vacancies"""
