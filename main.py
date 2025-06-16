@@ -1,9 +1,9 @@
 from config import config
-from src.API_work import FindEmployerFromHHApi, FindVacancyFromHHApi
-from src.DB_creation import DBConnection
+from src.api_work import FindEmployerFromHHApi, FindVacancyFromHHApi
+from src.db_creation import DBConnection
 from src.utils import filter_vacancies, get_top_vacancies, get_vacancies_by_salary, sort_vacancies
 from src.vacancies import Vacancy
-from src.DB_operation import DBManager
+from src.db_operation import DBManager
 
 
 def user_interaction():

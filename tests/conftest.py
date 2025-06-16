@@ -55,8 +55,11 @@ def get_vac_object_list():
                 "trusted": True,
             },
             "snippet": {
-                "requirement": "Необходимые навыки: — Ansible. — Apache Kafka. — OpenShift. — REST API. — понимание микросервиснойархитектуры.",
-                "responsibility": "Помоги повысить эффективность интеграции систем безопасности Сбера для быстрой реакции на любые инциденты. В рамках стажировки тебе предстоит: — изучать характеристики...",
+                "requirement": "Необходимые навыки: — Ansible. — Apache Kafka. — OpenShift. "
+                "— REST API. — понимание микросервиснойархитектуры.",
+                "responsibility": "Помоги повысить эффективность интеграции систем безопасности"
+                "Сбера для быстрой реакции на любые инциденты. В рамках стажировки"
+                "тебе предстоит: — изучать характеристики...",
             },
             "contacts": None,
             "schedule": {"id": "flexible", "name": "Гибкий график"},
@@ -140,8 +143,11 @@ def get_vac_object_list():
                 "trusted": True,
             },
             "snippet": {
-                "requirement": "<highlighttext>Python</highlighttext> от 3.7. FastApi/Flask. Postgresql, Sqlalchemy. Docker, git. Selenium: HTML/CSS/React преимущество. Библиотеки для разработки телеграм-ботов. ",
-                "responsibility": "Развивать применение ИИ для автоматизации и оптимизации рабочих процессов внутри компании.",
+                "requirement": "<highlighttext>Python</highlighttext> от 3.7. FastApi/Flask. Postgresql, "
+                "Sqlalchemy. Docker, git. Selenium: HTML/CSS/React преимущество. "
+                "Библиотеки для разработки телеграм-ботов. ",
+                "responsibility": "Развивать применение ИИ для автоматизации и оптимизации "
+                "рабочих процессов внутри компании.",
             },
             "contacts": None,
             "schedule": {"id": "fullDay", "name": "Полный день"},
@@ -192,7 +198,8 @@ def get_vac_object_list():
                 "requirement": "Базовые знания <highlighttext>Python</highlighttext>. Понимание ООП. "
                 "Опыт работы с фреймворками (например, Django, Flask). Знание SQL. "
                 "Базовые знания HTML, CSS, JavaScript. ",
-                "responsibility": "Разработка и поддержка backend части приложения на <highlighttext>Python</highlighttext>. Работа с "
+                "responsibility": "Разработка и поддержка backend части приложения "
+                "на <highlighttext>Python</highlighttext>. Работа с "
                 "базами данных (например, PostgreSQL, MongoDB). Написание чистого, эффективного и хорошо...",
             },
             "contacts": None,

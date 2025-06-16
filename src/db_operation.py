@@ -1,8 +1,4 @@
 import psycopg2
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 
 class DBManager:
@@ -10,15 +6,11 @@ class DBManager:
 
     def __init__(self, params):
         self._params = params
-        self._database = os.getenv("DATABASE")
 
     def connect_to_db(self):
         """Метод подключения к базе данных"""
         try:
-            return psycopg2.connect(
-                dbname=self._database,
-                **self._params
-            )
+            return psycopg2.connect(**self._params)
         except psycopg2.Error as e:
             print(f"Ошибка при подключении к базе данных: {e}")
             raise
@@ -67,9 +59,9 @@ class DBManager:
         """Получает список всех вакансий с указанием названия компании,
         названия вакансии, зарплаты и ссылки на вакансию"""
         query = """
-        SELECT c.name as company, v.name as vacancy, 
-               CASE 
-                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+        SELECT c.name as company, v.name as vacancy,
+               CASE
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL
                        THEN (v.salary_from + v.salary_to) / 2
                    WHEN v.salary_from IS NOT NULL THEN v.salary_from
                    WHEN v.salary_to IS NOT NULL THEN v.salary_to
@@ -95,8 +87,8 @@ class DBManager:
         """Получает среднюю зарплату по вакансиям"""
         query = """
         SELECT AVG(
-            CASE 
-                WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL 
+            CASE
+                WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL
                     THEN (salary_from + salary_to) / 2
                 WHEN salary_from IS NOT NULL THEN salary_from
                 WHEN salary_to IS NOT NULL THEN salary_to
@@ -114,8 +106,8 @@ class DBManager:
         """Получает список всех вакансий, у которых зарплата выше средней по всем вакансиям"""
         query = """
         SELECT v.name as vacancy, c.name as company,
-               CASE 
-                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+               CASE
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL
                        THEN (v.salary_from + v.salary_to) / 2
                    WHEN v.salary_from IS NOT NULL THEN v.salary_from
                    WHEN v.salary_to IS NOT NULL THEN v.salary_to
@@ -125,8 +117,8 @@ class DBManager:
         FROM vacancies v
         JOIN companies c ON v.company_id = c.id
         WHERE (
-            CASE 
-                WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+            CASE
+                WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL
                     THEN (v.salary_from + v.salary_to) / 2
                 WHEN v.salary_from IS NOT NULL THEN v.salary_from
                 WHEN v.salary_to IS NOT NULL THEN v.salary_to
@@ -134,8 +126,8 @@ class DBManager:
             END
         ) > (
             SELECT AVG(
-                CASE 
-                    WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL 
+                CASE
+                    WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL
                         THEN (salary_from + salary_to) / 2
                     WHEN salary_from IS NOT NULL THEN salary_from
                     WHEN salary_to IS NOT NULL THEN salary_to
@@ -153,15 +145,17 @@ class DBManager:
 
         output = ["Вакансии с зарплатой выше средней (первые 20):"]
         for vacancy, company, salary, url in results:
-            output.append(f"{company} - {vacancy}\nЗарплата: {int(salary)} руб.\nСсылка: {url}\n")
+            output.append(
+                f"{company} - {vacancy}\nЗарплата: {int(salary)} руб.\nСсылка: {url}\n"
+            )
         return "\n".join(output)
 
     def get_vacancies_with_keyword(self, keyword: str):
         """Получает список всех вакансий, в названии которых содержатся переданные слова"""
         query = """
         SELECT v.name as vacancy, c.name as company,
-               CASE 
-                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL 
+               CASE
+                   WHEN v.salary_from IS NOT NULL AND v.salary_to IS NOT NULL
                        THEN (v.salary_from + v.salary_to) / 2
                    WHEN v.salary_from IS NOT NULL THEN v.salary_from
                    WHEN v.salary_to IS NOT NULL THEN v.salary_to
@@ -174,12 +168,14 @@ class DBManager:
         ORDER BY salary DESC NULLS LAST
         LIMIT 20
         """
-        results = self.execute_query(query, ('%' + keyword + '%',))
+        results = self.execute_query(query, ("%" + keyword + "%",))
         if not results:
             return f"Нет вакансий по ключевому слову '{keyword}'"
 
         output = [f"Результаты поиска по '{keyword}' (первые 20):"]
         for vacancy, company, salary, url in results:
-            salary_info = f"Зарплата: {int(salary)} руб." if salary else "Зарплата не указана"
+            salary_info = (
+                f"Зарплата: {int(salary)} руб." if salary else "Зарплата не указана"
+            )
             output.append(f"{company} - {vacancy}\n{salary_info}\nСсылка: {url}\n")
         return "\n".join(output)
